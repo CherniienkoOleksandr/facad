@@ -10,40 +10,42 @@
  * @date 2024
  */
 
+#include "emoji_utils.h"
+#include "longlisting.h"
+#include <dirent.h>
+#include <errno.h>
+#include <glob.h>
+#include <grp.h>
+#include <locale.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <dirent.h>
 #include <time.h>
-#include <pwd.h>
-#include <grp.h>
-#include <locale.h>
-#include <errno.h>
 #include <unistd.h>
-#include <glob.h>
-#include "longlisting.h"
-#include "emoji_utils.h"
 
 #define MAX_PATH 4096
 #define MAX_ENTRIES 1000
 #define MAX_TIME_AGO_LEN 30
 
+#define delay 5
 /**
  * @struct file_info
  * @brief Structure to hold detailed information about a file or directory.
  */
 struct file_info {
-    char name[256];             /**< Name of the file or directory */
-    char full_path[MAX_PATH];   /**< Full path to the file or directory */
-    off_t size;                 /**< Size of the file or directory */
-    mode_t mode;                /**< File mode (permissions) */
-    time_t mtime;               /**< Last modification time */
-    int is_dir;                 /**< Flag indicating if it's a directory */
-    int subdir_count;           /**< Number of subdirectories (for directories) */
-    char owner[256];            /**< Owner of the file or directory */
-    char user_rights[16];       /**< User rights represented as emojis */
-    char time_ago[MAX_TIME_AGO_LEN]; /**< Human-readable time since last modification */
+    char name[256];           /**< Name of the file or directory */
+    char full_path[MAX_PATH]; /**< Full path to the file or directory */
+    off_t size;               /**< Size of the file or directory */
+    mode_t mode;              /**< File mode (permissions) */
+    time_t mtime;             /**< Last modification time */
+    int is_dir;               /**< Flag indicating if it's a directory */
+    int subdir_count;         /**< Number of subdirectories (for directories) */
+    char owner[256];          /**< Owner of the file or directory */
+    char user_rights[16];     /**< User rights represented as emojis */
+    char time_ago[MAX_TIME_AGO_LEN]; /**< Human-readable time since last
+                                        modification */
 };
 
 // Function prototypes
@@ -53,8 +55,14 @@ static void get_user_rights(mode_t mode, char *rights);
 static off_t get_dir_size(const char *path);
 static int count_subdirs(const char *path);
 static int compare_entries(const void *a, const void *b);
-static int get_file_info(const char *path, struct file_info *fi, size_t *max_owner_len, size_t *max_time_ago_len);
-static void print_sorted_entries(struct file_info *entries, int entry_count, size_t max_owner_len, size_t max_time_ago_len);
+static int get_file_info(const char *path, struct file_info *fi,
+                         size_t *max_owner_len, size_t *max_time_ago_len);
+static void print_sorted_entries(struct file_info *entries, int entry_count,
+                                 size_t max_owner_len, size_t max_time_ago_len);
+static void slower_print_sorted_entries(struct file_info *entries,
+                                        int entry_count, size_t max_owner_len,
+                                        size_t max_time_ago_len,
+                                        unsigned delay_ms);
 
 /**
  * @brief Formats a file size into a human-readable string.
@@ -78,7 +86,8 @@ static char *format_size(off_t size) {
 }
 
 /**
- * @brief Formats the time difference between now and a given time into a human-readable string.
+ * @brief Formats the time difference between now and a given time into a
+ * human-readable string.
  *
  * @param file_time The time to format.
  * @param buf Buffer to store the formatted string.
@@ -90,8 +99,8 @@ static void format_time_ago(time_t file_time, char *buf, size_t buf_size) {
     int minutes = (int)(seconds / 60);
     int hours = minutes / 60;
     int days = hours / 24;
-    int months = days / 30;  // Approximation
-    int years = days / 365;  // Approximation
+    int months = days / 30; // Approximation
+    int years = days / 365; // Approximation
 
     if (years > 0) {
         snprintf(buf, buf_size, "%dy %dm ago", years, months % 12);
@@ -109,7 +118,8 @@ static void format_time_ago(time_t file_time, char *buf, size_t buf_size) {
 }
 
 /**
- * @brief Converts file permissions to a string of emojis representing user rights.
+ * @brief Converts file permissions to a string of emojis representing user
+ * rights.
  *
  * @param mode The file mode containing the permissions.
  * @param rights Buffer to store the emoji string.
@@ -140,10 +150,12 @@ static off_t get_dir_size(const char *path) {
     char full_path[MAX_PATH];
 
     dir = opendir(path);
-    if (!dir) return 0;
+    if (!dir)
+        return 0;
 
     while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
 
         snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
 
@@ -171,10 +183,12 @@ static int count_subdirs(const char *path) {
     int count = 0;
 
     dir = opendir(path);
-    if (!dir) return 0;
+    if (!dir)
+        return 0;
 
     while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
 
         char full_path[MAX_PATH];
         snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
@@ -200,8 +214,10 @@ static int compare_entries(const void *a, const void *b) {
     const struct file_info *fa = (const struct file_info *)a;
     const struct file_info *fb = (const struct file_info *)b;
 
-    if (fa->is_dir && !fb->is_dir) return -1;
-    if (!fa->is_dir && fb->is_dir) return 1;
+    if (fa->is_dir && !fb->is_dir)
+        return -1;
+    if (!fa->is_dir && fb->is_dir)
+        return 1;
 
     if (fa->is_dir && fb->is_dir) {
         if (fa->subdir_count != fb->subdir_count) {
@@ -230,9 +246,11 @@ static int compare_entries(const void *a, const void *b) {
  * @param max_time_ago_len Pointer to store the maximum time ago string length.
  * @return 0 on success, -1 on failure.
  */
-static int get_file_info(const char *path, struct file_info *fi, size_t *max_owner_len, size_t *max_time_ago_len) {
+static int get_file_info(const char *path, struct file_info *fi,
+                         size_t *max_owner_len, size_t *max_time_ago_len) {
     struct stat st;
-    if (lstat(path, &st) != 0) return -1;
+    if (lstat(path, &st) != 0)
+        return -1;
 
     strncpy(fi->name, path, sizeof(fi->name) - 1);
     fi->name[sizeof(fi->name) - 1] = '\0';
@@ -276,18 +294,17 @@ static int get_file_info(const char *path, struct file_info *fi, size_t *max_own
  * @param max_owner_len Maximum length of owner names.
  * @param max_time_ago_len Maximum length of time ago strings.
  */
-static void print_sorted_entries(struct file_info *entries, int entry_count, size_t max_owner_len, size_t max_time_ago_len) {
+static void print_sorted_entries(struct file_info *entries, int entry_count,
+                                 size_t max_owner_len,
+                                 size_t max_time_ago_len) {
     for (int i = 0; i < entry_count; i++) {
         struct file_info *fi = &entries[i];
         char *emoji = get_emoji(fi->full_path);
 
-        printf("%8s  %-*s  \xF0\x9F\x91\x91: %-*s \xF0\x9F\x93\x9C: %s  %s %-17s",
-               format_size(fi->size),
-               (int)max_time_ago_len, fi->time_ago,
-               (int)max_owner_len, fi->owner,
-               fi->user_rights,
-               emoji,
-               fi->name);
+        printf(
+            "%8s  %-*s  \xF0\x9F\x91\x91: %-*s \xF0\x9F\x93\x9C: %s  %s %-17s",
+            format_size(fi->size), (int)max_time_ago_len, fi->time_ago,
+            (int)max_owner_len, fi->owner, fi->user_rights, emoji, fi->name);
 
         if (fi->is_dir) {
             printf("(%d)", fi->subdir_count);
@@ -296,6 +313,62 @@ static void print_sorted_entries(struct file_info *entries, int entry_count, siz
 
         free(emoji);
     }
+}
+static void slower_print_sorted_entries(struct file_info *entries,
+                                        int entry_count, size_t max_owner_len,
+                                        size_t max_time_ago_len,
+                                        unsigned delay_ms) {
+    int pipefd[2];
+
+    if (pipe(pipefd) == -1) {
+        print_sorted_entries(entries, entry_count, max_owner_len,
+                             max_time_ago_len);
+        return;
+    }
+
+    int saved_stdout = dup(STDOUT_FILENO);
+
+    if (saved_stdout == -1) {
+        close(pipefd[0]);
+        close(pipefd[1]);
+
+        print_sorted_entries(entries, entry_count, max_owner_len,
+                             max_time_ago_len);
+        return;
+    }
+
+    fflush(stdout);
+
+    if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+        close(pipefd[0]);
+        close(pipefd[1]);
+        close(saved_stdout);
+
+        print_sorted_entries(entries, entry_count, max_owner_len,
+                             max_time_ago_len);
+        return;
+    }
+
+    close(pipefd[1]);
+
+    print_sorted_entries(entries, entry_count, max_owner_len, max_time_ago_len);
+
+    fflush(stdout);
+
+    dup2(saved_stdout, STDOUT_FILENO);
+    close(saved_stdout);
+
+    char c;
+    ssize_t n;
+
+    while ((n = read(pipefd[0], &c, 1)) > 0) {
+        if (delay_ms)
+            usleep(delay_ms * 1000);
+
+        write(STDOUT_FILENO, &c, 1);
+    }
+
+    close(pipefd[0]);
 }
 
 /**
@@ -319,22 +392,26 @@ void print_longlisting(const char *path) {
 
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL && entry_count < MAX_ENTRIES) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
 
         char full_path[MAX_PATH];
         snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
 
         struct file_info *fi = &entries[entry_count];
-        if (get_file_info(full_path, fi, &max_owner_len, &max_time_ago_len) == 0) {
+        if (get_file_info(full_path, fi, &max_owner_len, &max_time_ago_len) ==
+            0) {
             entry_count++;
         }
     }
     closedir(dir);
 
     qsort(entries, entry_count, sizeof(struct file_info), compare_entries);
-    print_sorted_entries(entries, entry_count, max_owner_len, max_time_ago_len);
+    // print_sorted_entries(entries, entry_count, max_owner_len,
+    // max_time_ago_len);
+    slower_print_sorted_entries(entries, entry_count, max_owner_len,
+                                max_time_ago_len, delay);
 }
-
 
 void print_longlisting_files(const char **patterns, int pattern_count) {
     struct file_info entries[MAX_ENTRIES];
@@ -347,21 +424,27 @@ void print_longlisting_files(const char **patterns, int pattern_count) {
         int glob_result = glob(patterns[i], GLOB_TILDE, NULL, &globbuf);
 
         if (glob_result == 0) {
-            for (size_t j = 0; j < globbuf.gl_pathc && entry_count < MAX_ENTRIES; j++) {
+            for (size_t j = 0;
+                 j < globbuf.gl_pathc && entry_count < MAX_ENTRIES; j++) {
                 struct file_info *fi = &entries[entry_count];
-                if (get_file_info(globbuf.gl_pathv[j], fi, &max_owner_len, &max_time_ago_len) == 0) {
+                if (get_file_info(globbuf.gl_pathv[j], fi, &max_owner_len,
+                                  &max_time_ago_len) == 0) {
                     entry_count++;
                 }
             }
         } else {
-            fprintf(stderr, "glob error for pattern '%s': %s\n", patterns[i], strerror(errno));
+            fprintf(stderr, "glob error for pattern '%s': %s\n", patterns[i],
+                    strerror(errno));
         }
         globfree(&globbuf);
     }
 
     if (entry_count > 0) {
         qsort(entries, entry_count, sizeof(struct file_info), compare_entries);
-        print_sorted_entries(entries, entry_count, max_owner_len, max_time_ago_len);
+        slower_print_sorted_entries(entries, entry_count, max_owner_len,
+                                    max_time_ago_len, delay);
+        // print_sorted_entries(entries, entry_count, max_owner_len,
+        // max_time_ago_len);
     } else {
         fprintf(stderr, "No matching files found.\n");
     }

@@ -1,3 +1,18 @@
+// const char *test = entries[index].name;
+// int pipefd[2];
+// pipe(pipefd);
+// write(pipefd[1], test, strlen(test));
+// close(pipefd[1]);
+// char c;
+// ssize_t n;
+//
+// while ((n = read(pipefd[0], &c, 1)) > 0) {
+//     usleep(100 * 1000);
+//
+//     /* Output the character */
+//     write(STDOUT_FILENO, &c, 1);
+// }
+// close(pipefd[0]);
 /**
  * @file main.c
  * @brief Main entry point for the facad directory listing tool.
@@ -11,34 +26,36 @@
  * @date 2024
  */
 
-#include <stdio.h>
+#include <dirent.h>
 #include <errno.h>
+#include <fnmatch.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <dirent.h>
-#include <fnmatch.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#include "git_utils.h"
-#include "file_card.h"
-#include "dir_config.h"
 #include "args_parser.h"
-#include "longlisting.h"
-#include "dir_analytics.h"
-#include "display_utils.h"
 #include "dev_dir_utils.h"
+#include "dir_analytics.h"
+#include "dir_config.h"
+#include "display_utils.h"
+#include "file_card.h"
 #include "git_integration.h"
+#include "git_utils.h"
+#include "longlisting.h"
 
-#define MAX_PATH 4096        // Maximum path length
-#define INITIAL_ENTRIES 512  // Initial number of directory entries to allocate
+#define MAX_PATH 4096       // Maximum path length
+#define INITIAL_ENTRIES 512 // Initial number of directory entries to allocate
 
+#define delay_general 10
 /**
  * @brief Dynamically allocates or reallocates memory for directory entries.
  *
  * This function manages the memory for the array of FileCardInfo structures.
- * It starts with INITIAL_ENTRIES and doubles the size when more space is needed.
+ * It starts with INITIAL_ENTRIES and doubles the size when more space is
+ * needed.
  *
  * @param entries Pointer to the array of FileCardInfo structures.
  * @param current_size Pointer to the current size of the array.
@@ -49,25 +66,27 @@ static int allocate_entries(FileCardInfo **entries, int *current_size) {
     int new_size = (*entries == NULL) ? INITIAL_ENTRIES : (*current_size * 2);
 
     // Attempt to reallocate memory for entries
-    FileCardInfo *new_entries = realloc(*entries, new_size * sizeof(FileCardInfo));
+    FileCardInfo *new_entries =
+        realloc(*entries, new_size * sizeof(FileCardInfo));
 
     // Check if reallocation was successful
     if (new_entries == NULL) {
         perror("Failed to allocate memory for entries"); // Print error message
-        return -1;  // Return -1 to indicate failure
+        return -1; // Return -1 to indicate failure
     }
 
     // Update entries pointer and current size
     *entries = new_entries;
     *current_size = new_size;
-    return 0;  // Return 0 to indicate success
+    return 0; // Return 0 to indicate success
 }
 
 /**
  * @brief Processes directory entries and populates the entries array.
  *
- * This function reads directory contents, creates FileCardInfo structures for each entry,
- * and dynamically allocates memory as needed. It also integrates Git status information.
+ * This function reads directory contents, creates FileCardInfo structures for
+ * each entry, and dynamically allocates memory as needed. It also integrates
+ * Git status information.
  *
  * @param dir_path Path to the directory to process.
  * @param entries Pointer to the array of FileCardInfo structures.
@@ -75,17 +94,21 @@ static int allocate_entries(FileCardInfo **entries, int *current_size) {
  * @param current_size Pointer to the current size of the entries array.
  * @return 0 on success, -1 on failure.
  */
-static int process_directory(const char *dir_path, FileCardInfo **entries, int *num_entries, int *current_size) {
+static int process_directory(const char *dir_path, FileCardInfo **entries,
+                             int *num_entries, int *current_size) {
     DIR *dir = opendir(dir_path); // Open the directory
     if (dir == NULL) {
-        perror("Error opening directory"); // Print error message if directory can't be opened
+        perror("Error opening directory"); // Print error message if directory
+                                           // can't be opened
         return -1;
     }
 
     struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) { // Loop through each entry in the directory
+    while ((entry = readdir(dir)) !=
+           NULL) { // Loop through each entry in the directory
         // Skip '.' and '..' entries
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+        if (strcmp(entry->d_name, ".") == 0 ||
+            strcmp(entry->d_name, "..") == 0) {
             continue;
         }
 
@@ -99,11 +122,13 @@ static int process_directory(const char *dir_path, FileCardInfo **entries, int *
 
         // Construct full path for the current entry
         char full_path[MAX_PATH];
-        snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, entry->d_name);
+        snprintf(full_path, sizeof(full_path), "%s/%s", dir_path,
+                 entry->d_name);
 
         // Create a file entry and add it to the array
         if (create_file_entry(&(*entries)[*num_entries], entry->d_name) != 0) {
-            fprintf(stderr, "Warning: Unable to get info for %s: %s\n", full_path, strerror(errno));
+            fprintf(stderr, "Warning: Unable to get info for %s: %s\n",
+                    full_path, strerror(errno));
             continue;
         }
 
@@ -131,18 +156,22 @@ static int process_directory(const char *dir_path, FileCardInfo **entries, int *
  * @param current_size Pointer to the current size of the entries array.
  * @return 0 on success, -1 on failure.
  */
-static int process_files_or_patterns(const char **patterns, int pattern_count, FileCardInfo **entries, int *num_entries, int *current_size) {
+static int process_files_or_patterns(const char **patterns, int pattern_count,
+                                     FileCardInfo **entries, int *num_entries,
+                                     int *current_size) {
     DIR *dir;
     struct dirent *entry;
     char full_path[MAX_PATH];
 
     dir = opendir("."); // Open the current directory
     if (dir == NULL) {
-        perror("Error opening current directory"); // Print error message if directory can't be opened
+        perror("Error opening current directory"); // Print error message if
+                                                   // directory can't be opened
         return -1;
     }
 
-    while ((entry = readdir(dir)) != NULL) { // Loop through each entry in the directory
+    while ((entry = readdir(dir)) !=
+           NULL) { // Loop through each entry in the directory
         bool match = false;
         // Check if the entry matches any of the provided patterns
         for (int i = 0; i < pattern_count; i++) {
@@ -164,7 +193,8 @@ static int process_files_or_patterns(const char **patterns, int pattern_count, F
             // Create a file entry for the matching file
             snprintf(full_path, sizeof(full_path), "%s", entry->d_name);
             if (create_file_entry(&(*entries)[*num_entries], full_path) != 0) {
-                fprintf(stderr, "Warning: Unable to get info for %s: %s\n", full_path, strerror(errno));
+                fprintf(stderr, "Warning: Unable to get info for %s: %s\n",
+                        full_path, strerror(errno));
                 continue;
             }
 
@@ -173,7 +203,9 @@ static int process_files_or_patterns(const char **patterns, int pattern_count, F
     }
 
     closedir(dir); // Close the directory
-    return *num_entries > 0 ? 0 : -1; // Return 0 if entries were found, -1 otherwise
+    return *num_entries > 0
+               ? 0
+               : -1; // Return 0 if entries were found, -1 otherwise
 }
 
 /**
@@ -185,8 +217,9 @@ static int process_files_or_patterns(const char **patterns, int pattern_count, F
 static int is_directory(const char *path) {
     struct stat statbuf;
     if (stat(path, &statbuf) != 0) // Get file status
-        return 0; // Return 0 if stat fails
-    return S_ISDIR(statbuf.st_mode); // Return 1 if it's a directory, 0 otherwise
+        return 0;                  // Return 0 if stat fails
+    return S_ISDIR(
+        statbuf.st_mode); // Return 1 if it's a directory, 0 otherwise
 }
 
 /**
@@ -201,30 +234,36 @@ static int is_directory(const char *path) {
  * @param current_size Pointer to the current size of the entries array.
  * @return 0 on success, -1 on failure.
  */
-static int process_target(const char *target, FileCardInfo **entries, int *num_entries, int *current_size) {
+static int process_target(const char *target, FileCardInfo **entries,
+                          int *num_entries, int *current_size) {
     if (is_directory(target)) { // If the target is a directory
         char previous_dir[MAX_PATH];
-        if (getcwd(previous_dir, sizeof(previous_dir)) == NULL) { // Get current working directory
+        if (getcwd(previous_dir, sizeof(previous_dir)) ==
+            NULL) { // Get current working directory
             perror("getcwd() error");
             return -1;
         }
 
         if (chdir(target) != 0) { // Change to the target directory
-            fprintf(stderr, "Error changing to directory '%s': %s\n", target, strerror(errno));
+            fprintf(stderr, "Error changing to directory '%s': %s\n", target,
+                    strerror(errno));
             return -1;
         }
 
-        int result = process_directory(".", entries, num_entries, current_size); // Process the directory
+        int result = process_directory(".", entries, num_entries,
+                                       current_size); // Process the directory
 
         // Change back to the previous directory
         if (chdir(previous_dir) != 0) {
-            fprintf(stderr, "Error changing back to previous directory: %s\n", strerror(errno));
+            fprintf(stderr, "Error changing back to previous directory: %s\n",
+                    strerror(errno));
             return -1;
         }
 
         return result;
     } else if (is_glob_pattern(target)) { // If the target is a glob pattern
-        return process_files_or_patterns(&target, 1, entries, num_entries, current_size);
+        return process_files_or_patterns(&target, 1, entries, num_entries,
+                                         current_size);
     } else { // Assume it's a single file
         // Check if we need to allocate more memory
         if (*num_entries >= *current_size) {
@@ -234,7 +273,8 @@ static int process_target(const char *target, FileCardInfo **entries, int *num_e
         }
         // Create a file entry for the single file
         if (create_file_entry(&(*entries)[*num_entries], target) != 0) {
-            fprintf(stderr, "Unable to get info for %s: %s\n", target, strerror(errno));
+            fprintf(stderr, "Unable to get info for %s: %s\n", target,
+                    strerror(errno));
             return -1;
         }
         (*num_entries)++; // Increment the number of entries
@@ -265,15 +305,19 @@ static int is_glob_or_specific_files(const char **targets, int target_count) {
  * @brief Main function of the facad program.
  *
  * This function serves as the entry point for the facad directory listing tool.
- * It parses command-line arguments, processes directories or files based on the input,
- * and displays the results using the appropriate format (standard, long listing, or analytics).
+ * It parses command-line arguments, processes directories or files based on the
+ * input, and displays the results using the appropriate format (standard, long
+ * listing, or analytics).
  *
  * @param argc Number of command-line arguments.
  * @param argv Array of command-line argument strings.
  * @return EXIT_SUCCESS on successful execution, EXIT_FAILURE on error.
  */
+void test_normal(void) { printf("%s\n", "Some text for testing output"); }
 int main(int argc, char *argv[]) {
-    CommandLineArgs args = parse_args(argc, argv); // Parse command-line arguments
+
+    CommandLineArgs args =
+        parse_args(argc, argv); // Parse command-line arguments
 
     // Handle version display request
     if (args.show_version) {
@@ -291,7 +335,8 @@ int main(int argc, char *argv[]) {
 
     // Handle invalid options
     if (args.invalid_opt) {
-        fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0], args.invalid_opt);
+        fprintf(stderr, "%s: unrecognized option '%s'\n", argv[0],
+                args.invalid_opt);
         fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
         free_args(&args);
         return EXIT_FAILURE;
@@ -307,7 +352,8 @@ int main(int argc, char *argv[]) {
 
     // Handle long listing request
     if (args.show_longlisting) {
-        if (args.target_count > 0 && is_glob_or_specific_files(args.targets, args.target_count)) {
+        if (args.target_count > 0 &&
+            is_glob_or_specific_files(args.targets, args.target_count)) {
             print_longlisting_files(args.targets, args.target_count);
         } else {
             print_longlisting(args.target_count > 0 ? args.targets[0] : ".");
@@ -353,7 +399,8 @@ int main(int argc, char *argv[]) {
             }
 
             // Process the target
-            if (process_target(args.targets[i], &entries, &num_entries, &current_size) != 0) {
+            if (process_target(args.targets[i], &entries, &num_entries,
+                               &current_size) != 0) {
                 fprintf(stderr, "Error processing '%s'\n", args.targets[i]);
                 goto cleanup; // Jump to cleanup if there's an error
             }
@@ -362,13 +409,15 @@ int main(int argc, char *argv[]) {
         // Check if current directory is /dev and handle accordingly
         if (is_dev_directory(current_dir)) {
             strcpy(display_path, "/dev");
-            if (handle_dev_directory(&entries, &num_entries, &current_size) != 0) {
+            if (handle_dev_directory(&entries, &num_entries, &current_size) !=
+                0) {
                 fprintf(stderr, "Error processing /dev directory\n");
                 goto cleanup;
             }
         } else {
             // Process current directory
-            if (process_directory(".", &entries, &num_entries, &current_size) != 0) {
+            if (process_directory(".", &entries, &num_entries, &current_size) !=
+                0) {
                 fprintf(stderr, "Error processing current directory\n");
                 goto cleanup;
             }
@@ -391,18 +440,18 @@ int main(int argc, char *argv[]) {
         // Sort the entries alphabetically
         qsort(entries, num_entries, sizeof(FileCardInfo), compare_file_entries);
 
-
-
         // Display the entries using the appropriate format
-        display_entries(entries, num_entries, term_width, display_path, show_path);
+        // display_entries(entries, num_entries, term_width, display_path,
+        //                 show_path);
+        slower_display_entries(entries, num_entries, term_width, display_path,
+                               show_path, delay_general);
     }
-
 cleanup:
     // Free allocated memory for each entry
     for (int i = 0; i < num_entries; i++) {
         free_file_entry(&entries[i]);
     }
-    free(entries); // Free the main entries array
+    free(entries);    // Free the main entries array
     free_args(&args); // Free command-line arguments
 
     // Return success if entries were found, failure otherwise
