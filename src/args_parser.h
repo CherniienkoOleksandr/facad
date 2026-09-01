@@ -13,8 +13,8 @@
 #ifndef ARGS_PARSER_H
 #define ARGS_PARSER_H
 
-#include <stdbool.h>         // Include for boolean type
-#define slon_step_default 50 // Default step value for slon output
+#include <stdbool.h> // Include for boolean type
+// #define slon_step_default 50 // Default step value for slon output
 
 /**
  * @struct CommandLineArgs
@@ -64,8 +64,6 @@ void free_args(CommandLineArgs *args);
  * This function displays the version number of the facad program.
  */
 void print_version(void);
-
-void print_version2(unsigned);
 
 /**
  * @brief Prints the help information for facad.

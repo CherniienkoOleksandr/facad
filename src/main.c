@@ -45,11 +45,11 @@
 #include "git_integration.h"
 #include "git_utils.h"
 #include "longlisting.h"
+#include "printf_slon.h"
 
 #define MAX_PATH 4096       // Maximum path length
 #define INITIAL_ENTRIES 512 // Initial number of directory entries to allocate
 
-#define delay_general 10
 /**
  * @brief Dynamically allocates or reallocates memory for directory entries.
  *
@@ -71,7 +71,7 @@ static int allocate_entries(FileCardInfo **entries, int *current_size) {
 
     // Check if reallocation was successful
     if (new_entries == NULL) {
-        perror("Failed to allocate memory for entries"); // Print error message
+        perror("Failed to allocate memory for entries"); // Print error messa
         return -1; // Return -1 to indicate failure
     }
 
@@ -373,9 +373,15 @@ int main(int argc, char *argv[]) {
 
     // Handle directory analytics request
     if (args.show_dir_analytics) {
-        // передаем в функцию значение show_slon и slon_step из структуры args
-        get_slon_values(args.show_slon, args.slon_step);
-        print_dir_analytics(args.target_count > 0 ? args.targets[0] : ".");
+        if (args.show_slon) {
+            // передаем в функцию значение show_slon и slon_step из структуры
+            // args
+            // get_slon_values(args.show_slon, args.slon_step);
+            slon_dir_analytics(args.target_count > 0 ? args.targets[0] : ".",
+                               args.slon_step);
+
+        } else
+            print_dir_analytics(args.target_count > 0 ? args.targets[0] : ".");
 
         free_args(&args);
         return EXIT_SUCCESS;

@@ -6,7 +6,7 @@
 void display_entries(FileCardInfo *entries, int num_entries, int term_width,
                      const char *current_dir, int show_path);
 
-void slower_display_entries(FileCardInfo *entries, int num_entries,
-                            int term_width, const char *current_dir,
-                            int show_path, unsigned delay_ms);
+// void slower_display_entries(FileCardInfo *entries, int num_entries,
+//                             int term_width, const char *current_dir,
+//                             int show_path, unsigned delay_ms);
 #endif // DISPLAY_UTILS_H

@@ -29,7 +29,7 @@
 #define MAX_ENTRIES 1000
 #define MAX_TIME_AGO_LEN 30
 
-#define delay 5
+// #define delay 5
 /**
  * @struct file_info
  * @brief Structure to hold detailed information about a file or directory.

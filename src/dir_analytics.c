@@ -38,8 +38,6 @@
  * @param size The size in bytes to format.
  * @return A pointer to a static buffer containing the formatted size string.
  */
-static bool value = false;
-static unsigned int level = 0;
 
 static char *format_size(off_t size) {
 
@@ -298,7 +296,6 @@ void print_dir_analytics(const char *path) {
         return;
     }
 
-    printf("%d\t%d\n", value, level);
     // Print analytics
     printf("%s%s%s\n", ANSI_BOLD, cwd, ANSI_RESET);
     printf("🧮 Total Size    : %s\n", format_size(total_size));
@@ -319,10 +316,4 @@ void print_dir_analytics(const char *path) {
         printf("%s%s", empty_file_names[i], (i + 1 < empty_files) ? " " : "");
     }
     printf("]\n");
-}
-
-void get_slon_values(bool show_slon, unsigned int slon_step) {
-
-    value = show_slon;
-    level = slon_step;
 }

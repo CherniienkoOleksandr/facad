@@ -27,7 +27,7 @@
 #define SPACING 2
 #define EMOJI_WIDTH 2
 #define EMOJI_NAME_SPACING 1
-#define delay_general 10
+// #define delay_general 10
 
 /**
  * @brief Calculate the width of a UTF-8 character

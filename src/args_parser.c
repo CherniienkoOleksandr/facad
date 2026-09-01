@@ -17,8 +17,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "printf_slon.h"
-
 /**
  * @brief Checks if a string is a glob pattern.
  *
@@ -58,7 +56,7 @@ CommandLineArgs parse_args(int argc, char *argv[]) {
 
         } else if (strcmp(argv[i], "--slon") == 0) {
             args.show_slon = true;
-            args.slon_step = slon_step_default; // Set default slon step
+            // args.slon_step = slon_step_default; // Set default slon step
             if (i + 1 < argc &&
                 argv[i + 1][0] != '-') { /* не флаг → это значение */
                 char *end;
@@ -120,11 +118,6 @@ void print_version(void) {
     printf("facad version %s\n", VERSION); // Print version number
 }
 
-void print_version2(unsigned ms) {
-    printf_slon(ms, "facad version %s\n",
-                VERSION); // Print version number
-}
-
 /**
  * @brief Prints the help information for facad.
  *
@@ -141,6 +134,8 @@ void print_help(const char *program_name) {
     printf("  -v, --version   output version information and exit\n");
     printf("  -l, --long      display detailed directory listing\n");
     printf("  -a, --analytics display directory analytics\n");
+    printf("  [--slon]        add to get slon-step output. (Ex.: ./facad "
+           "--slon 5 -a)\n");
     printf("\nIf DIRECTORY is not specified, the current directory is "
            "used.\n");
 }
