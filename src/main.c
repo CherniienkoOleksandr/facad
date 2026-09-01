@@ -319,13 +319,22 @@ int main(int argc, char *argv[]) {
     CommandLineArgs args =
         parse_args(argc, argv); // Parse command-line arguments
 
+    // if (args.show_slon) {
+    //     // test_normal();
+    //     free_args(&args);
+    //     return EXIT_SUCCESS;
+    // }
+
     // Handle version display request
     if (args.show_version) {
-        print_version();
+        if (args.show_slon) {
+            print_version2(args.slon_step);
+        } else {
+            print_version();
+        }
         free_args(&args);
         return EXIT_SUCCESS;
     }
-
     // Handle help display request
     if (args.show_help) {
         print_help(argv[0]);
@@ -364,7 +373,10 @@ int main(int argc, char *argv[]) {
 
     // Handle directory analytics request
     if (args.show_dir_analytics) {
+        // передаем в функцию значение show_slon и slon_step из структуры args
+        get_slon_values(args.show_slon, args.slon_step);
         print_dir_analytics(args.target_count > 0 ? args.targets[0] : ".");
+
         free_args(&args);
         return EXIT_SUCCESS;
     }
@@ -441,10 +453,10 @@ int main(int argc, char *argv[]) {
         qsort(entries, num_entries, sizeof(FileCardInfo), compare_file_entries);
 
         // Display the entries using the appropriate format
-        // display_entries(entries, num_entries, term_width, display_path,
-        //                 show_path);
-        slower_display_entries(entries, num_entries, term_width, display_path,
-                               show_path, delay_general);
+        display_entries(entries, num_entries, term_width, display_path,
+                        show_path);
+        // slower_display_entries(entries, num_entries, term_width,
+        // display_path, show_path, delay_general);
     }
 cleanup:
     // Free allocated memory for each entry

@@ -14,6 +14,7 @@
 #ifndef DIR_ANALYTICS_H
 #define DIR_ANALYTICS_H
 
+#include "args_parser.h"
 /**
  * @brief Prints detailed analytics about a directory
  *
@@ -39,5 +40,7 @@
  *          significant memory and processing resources.
  */
 void print_dir_analytics(const char *path);
+
+void get_slon_values(bool show_slon, unsigned int slon_step);
 
 #endif // DIR_ANALYTICS_H

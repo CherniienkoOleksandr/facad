@@ -59,10 +59,10 @@ static int get_file_info(const char *path, struct file_info *fi,
                          size_t *max_owner_len, size_t *max_time_ago_len);
 static void print_sorted_entries(struct file_info *entries, int entry_count,
                                  size_t max_owner_len, size_t max_time_ago_len);
-static void slower_print_sorted_entries(struct file_info *entries,
-                                        int entry_count, size_t max_owner_len,
-                                        size_t max_time_ago_len,
-                                        unsigned delay_ms);
+// static void slower_print_sorted_entries(struct file_info *entries,
+//                                         int entry_count, size_t
+//                                         max_owner_len, size_t
+//                                         max_time_ago_len, unsigned delay_ms);
 
 /**
  * @brief Formats a file size into a human-readable string.
@@ -314,62 +314,65 @@ static void print_sorted_entries(struct file_info *entries, int entry_count,
         free(emoji);
     }
 }
-static void slower_print_sorted_entries(struct file_info *entries,
-                                        int entry_count, size_t max_owner_len,
-                                        size_t max_time_ago_len,
-                                        unsigned delay_ms) {
-    int pipefd[2];
 
-    if (pipe(pipefd) == -1) {
-        print_sorted_entries(entries, entry_count, max_owner_len,
-                             max_time_ago_len);
-        return;
-    }
-
-    int saved_stdout = dup(STDOUT_FILENO);
-
-    if (saved_stdout == -1) {
-        close(pipefd[0]);
-        close(pipefd[1]);
-
-        print_sorted_entries(entries, entry_count, max_owner_len,
-                             max_time_ago_len);
-        return;
-    }
-
-    fflush(stdout);
-
-    if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
-        close(pipefd[0]);
-        close(pipefd[1]);
-        close(saved_stdout);
-
-        print_sorted_entries(entries, entry_count, max_owner_len,
-                             max_time_ago_len);
-        return;
-    }
-
-    close(pipefd[1]);
-
-    print_sorted_entries(entries, entry_count, max_owner_len, max_time_ago_len);
-
-    fflush(stdout);
-
-    dup2(saved_stdout, STDOUT_FILENO);
-    close(saved_stdout);
-
-    char c;
-    ssize_t n;
-
-    while ((n = read(pipefd[0], &c, 1)) > 0) {
-        if (delay_ms)
-            usleep(delay_ms * 1000);
-
-        write(STDOUT_FILENO, &c, 1);
-    }
-
-    close(pipefd[0]);
-}
+// static void slower_print_sorted_entries(struct file_info *entries,
+//                                         int entry_count, size_t
+//                                         max_owner_len, size_t
+//                                         max_time_ago_len, unsigned delay_ms)
+//                                         {
+//     int pipefd[2];
+//
+//     if (pipe(pipefd) == -1) {
+//         print_sorted_entries(entries, entry_count, max_owner_len,
+//                              max_time_ago_len);
+//         return;
+//     }
+//
+//     int saved_stdout = dup(STDOUT_FILENO);
+//
+//     if (saved_stdout == -1) {
+//         close(pipefd[0]);
+//         close(pipefd[1]);
+//
+//         print_sorted_entries(entries, entry_count, max_owner_len,
+//                              max_time_ago_len);
+//         return;
+//     }
+//
+//     fflush(stdout);
+//
+//     if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+//         close(pipefd[0]);
+//         close(pipefd[1]);
+//         close(saved_stdout);
+//
+//         print_sorted_entries(entries, entry_count, max_owner_len,
+//                              max_time_ago_len);
+//         return;
+//     }
+//
+//     close(pipefd[1]);
+//
+//     print_sorted_entries(entries, entry_count, max_owner_len,
+//     max_time_ago_len);
+//
+//     fflush(stdout);
+//
+//     dup2(saved_stdout, STDOUT_FILENO);
+//     close(saved_stdout);
+//
+//     char c;
+//     ssize_t n;
+//
+//     while ((n = read(pipefd[0], &c, 1)) > 0) {
+//         if (delay_ms)
+//             usleep(delay_ms * 1000);
+//
+//         write(STDOUT_FILENO, &c, 1);
+//     }
+//
+//     close(pipefd[0]);
+// }
 
 /**
  * @brief Prints a detailed listing of the contents of a directory.
@@ -407,10 +410,9 @@ void print_longlisting(const char *path) {
     closedir(dir);
 
     qsort(entries, entry_count, sizeof(struct file_info), compare_entries);
-    // print_sorted_entries(entries, entry_count, max_owner_len,
-    // max_time_ago_len);
-    slower_print_sorted_entries(entries, entry_count, max_owner_len,
-                                max_time_ago_len, delay);
+    print_sorted_entries(entries, entry_count, max_owner_len, max_time_ago_len);
+    // slower_print_sorted_entries(entries, entry_count, max_owner_len,
+    //                             max_time_ago_len, delay);
 }
 
 void print_longlisting_files(const char **patterns, int pattern_count) {
@@ -441,10 +443,10 @@ void print_longlisting_files(const char **patterns, int pattern_count) {
 
     if (entry_count > 0) {
         qsort(entries, entry_count, sizeof(struct file_info), compare_entries);
-        slower_print_sorted_entries(entries, entry_count, max_owner_len,
-                                    max_time_ago_len, delay);
-        // print_sorted_entries(entries, entry_count, max_owner_len,
-        // max_time_ago_len);
+        // slower_print_sorted_entries(entries, entry_count, max_owner_len,
+        //                             max_time_ago_len, delay);
+        print_sorted_entries(entries, entry_count, max_owner_len,
+                             max_time_ago_len);
     } else {
         fprintf(stderr, "No matching files found.\n");
     }

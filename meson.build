@@ -19,6 +19,7 @@ src_files = [
   'src/emoji_mappings.c',
   'src/git_utils.c',
   'src/git_integration.c',
+  'src/printf_slon.c',
 ]
 
 version = meson.project_version()

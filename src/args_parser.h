@@ -13,7 +13,8 @@
 #ifndef ARGS_PARSER_H
 #define ARGS_PARSER_H
 
-#include <stdbool.h>  // Include for boolean type
+#include <stdbool.h>         // Include for boolean type
+#define slon_step_default 50 // Default step value for slon output
 
 /**
  * @struct CommandLineArgs
@@ -22,22 +23,24 @@
  * This structure stores flags for various options and an array of target
  * directories or files specified in the command line.
  */
-typedef struct
-{
-    bool show_version;        // Flag to show version information
-    bool show_help;           // Flag to show help information
-    bool show_longlisting;    // Flag to show detailed directory listing
-    bool show_dir_analytics;  // Flag to show directory analytics
-    const char *invalid_opt;  // Stores any invalid option encountered
-    const char **targets;     // Array of target directories or files
-    int target_count;         // Number of targets specified
+typedef struct {
+    bool show_slon;          // Flag to show timed output
+    unsigned int slon_step;  // Step value for slon output in string format
+    bool show_version;       // Flag to show version information
+    bool show_help;          // Flag to show help information
+    bool show_longlisting;   // Flag to show detailed directory listing
+    bool show_dir_analytics; // Flag to show directory analytics
+    const char *invalid_opt; // Stores any invalid option encountered
+    const char **targets;    // Array of target directories or files
+    int target_count;        // Number of targets specified
 } CommandLineArgs;
 
 /**
  * @brief Parses command-line arguments.
  *
  * This function processes the command-line arguments, setting appropriate flags
- * in the CommandLineArgs structure and collecting non-option arguments as targets.
+ * in the CommandLineArgs structure and collecting non-option arguments as
+ * targets.
  *
  * @param argc The number of command-line arguments.
  * @param argv An array of strings containing the command-line arguments.
@@ -61,6 +64,8 @@ void free_args(CommandLineArgs *args);
  * This function displays the version number of the facad program.
  */
 void print_version(void);
+
+void print_version2(unsigned);
 
 /**
  * @brief Prints the help information for facad.

@@ -10,11 +10,14 @@
  * @date 2024
  */
 
-#include <string.h>
+#include "args_parser.h"
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "config.h"
-#include "args_parser.h"
+#include <string.h>
+#include <unistd.h>
+
+#include "printf_slon.h"
 
 /**
  * @brief Checks if a string is a glob pattern.
@@ -27,43 +30,69 @@
  */
 bool is_glob_pattern(const char *str) {
     // Check for the presence of wildcard characters
-    return (strchr(str, '*') != NULL || strchr(str, '?') != NULL || strchr(str, '[') != NULL);
+    return (strchr(str, '*') != NULL || strchr(str, '?') != NULL ||
+            strchr(str, '[') != NULL);
 }
 
 /**
  * @brief Parses command-line arguments.
  *
  * This function processes the command-line arguments, setting appropriate flags
- * in the CommandLineArgs structure and collecting non-option arguments as targets.
+ * in the CommandLineArgs structure and collecting non-option arguments as
+ * targets.
  *
  * @param argc The number of command-line arguments.
  * @param argv An array of strings containing the command-line arguments.
  * @return A CommandLineArgs structure containing the parsed arguments.
  */
 CommandLineArgs parse_args(int argc, char *argv[]) {
-    CommandLineArgs args = {0};  // Initialize the args structure with zeros
-    args.targets = malloc(sizeof(char*) * (argc - 1));  // Allocate memory for targets
-    args.target_count = 0;  // Initialize target count to 0
+    CommandLineArgs args = {0}; // Initialize the args structure with zeros
+    args.targets =
+        malloc(sizeof(char *) * (argc - 1)); // Allocate memory for targets
+    args.target_count = 0;                   // Initialize target count to 0
 
     // Loop through all arguments starting from index 1 (skip program name)
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
-            args.show_version = true;  // Set flag to show version
-        } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
-            args.show_help = true;  // Set flag to show help
-        } else if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--long") == 0) {
-            args.show_longlisting = true;  // Set flag for long listing
-        } else if (strcmp(argv[i], "-a") == 0 || strcmp(argv[i], "--analytics") == 0) {
-            args.show_dir_analytics = true;  // Set flag for directory analytics
+            args.show_version = true; // Set flag to show version
+
+        } else if (strcmp(argv[i], "--slon") == 0) {
+            args.show_slon = true;
+            args.slon_step = slon_step_default; // Set default slon step
+            if (i + 1 < argc &&
+                argv[i + 1][0] != '-') { /* не флаг → это значение */
+                char *end;
+                unsigned v = strtoul(argv[i + 1], &end, 10);
+                if (*end == '\0') {
+                    args.slon_step = v;
+                    i++;
+                } else {
+                    fprintf(stderr, "usage...\n");
+                }
+                /* --slon без числа или --slon --version → дефолт 50, идём
+                 * дальше */
+                continue;
+            } // return args;
+
+        } else if (strcmp(argv[i], "-h") == 0 ||
+                   strcmp(argv[i], "--help") == 0) {
+            args.show_help = true; // Set flag to show help
+        } else if (strcmp(argv[i], "-l") == 0 ||
+                   strcmp(argv[i], "--long") == 0) {
+            args.show_longlisting = true; // Set flag for long listing
+        } else if (strcmp(argv[i], "-a") == 0 ||
+                   strcmp(argv[i], "--analytics") == 0) {
+            args.show_dir_analytics = true; // Set flag for directory analytics
         } else if (argv[i][0] == '-') {
-            args.invalid_opt = argv[i];  // Store invalid option
-            return args;  // Return immediately on invalid option
+            args.invalid_opt = argv[i]; // Store invalid option
+            return args;                // Return immediately on invalid option
         } else {
-            args.targets[args.target_count++] = argv[i];  // Store non-option argument as target
+            args.targets[args.target_count++] =
+                argv[i]; // Store non-option argument as target
         }
     }
 
-    return args;  // Return the populated CommandLineArgs structure
+    return args; // Return the populated CommandLineArgs structure
 }
 
 /**
@@ -77,7 +106,7 @@ CommandLineArgs parse_args(int argc, char *argv[]) {
 void free_args(CommandLineArgs *args) {
     if (args->targets) {
         free(args->targets);  // Free the targets array
-        args->targets = NULL;  // Set pointer to NULL to prevent double-free
+        args->targets = NULL; // Set pointer to NULL to prevent double-free
     }
 }
 
@@ -88,7 +117,12 @@ void free_args(CommandLineArgs *args) {
  * which is defined in the config.h file.
  */
 void print_version(void) {
-    printf("facad version %s\n", VERSION);  // Print version number
+    printf("facad version %s\n", VERSION); // Print version number
+}
+
+void print_version2(unsigned ms) {
+    printf_slon(ms, "facad version %s\n",
+                VERSION); // Print version number
 }
 
 /**
@@ -107,5 +141,6 @@ void print_help(const char *program_name) {
     printf("  -v, --version   output version information and exit\n");
     printf("  -l, --long      display detailed directory listing\n");
     printf("  -a, --analytics display directory analytics\n");
-    printf("\nIf DIRECTORY is not specified, the current directory is used.\n");
+    printf("\nIf DIRECTORY is not specified, the current directory is "
+           "used.\n");
 }

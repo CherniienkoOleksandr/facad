@@ -10,20 +10,20 @@
  * @date 2024
  */
 
-#include <pwd.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <grp.h>
-#include <time.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dirent.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
-#include <errno.h>
-#include <fcntl.h>
 
-#include "emoji_utils.h"
 #include "dir_analytics.h"
+#include "emoji_utils.h"
 
 #define MAX_PATH 4096
 #define MAX_FILES 1024
@@ -38,9 +38,13 @@
  * @param size The size in bytes to format.
  * @return A pointer to a static buffer containing the formatted size string.
  */
-static char* format_size(off_t size) {
+static bool value = false;
+static unsigned int level = 0;
+
+static char *format_size(off_t size) {
+
     static char buf[64];
-    const char* units[] = {"B", "K", "M", "G", "T", "P", "E", "Z", "Y"};
+    const char *units[] = {"B", "K", "M", "G", "T", "P", "E", "Z", "Y"};
     int i = 0;
     double dsize = size;
 
@@ -61,9 +65,9 @@ static char* format_size(off_t size) {
  * @param t The time_t value to format.
  * @return A pointer to a static buffer containing the formatted time string.
  */
-static char* format_time(time_t t) {
+static char *format_time(time_t t) {
     static char buf[20];
-    struct tm* tm_info = localtime(&t);
+    struct tm *tm_info = localtime(&t);
     strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm_info);
     return buf;
 }
@@ -76,17 +80,20 @@ static char* format_time(time_t t) {
  * @param current_depth The current depth in the recursion.
  * @param deepest_dir Buffer to store the path of the deepest directory.
  */
-static void recursive_dir_scan(const char* path, int* max_depth, int current_depth, char* deepest_dir) {
-    DIR* dir;
-    struct dirent* entry;
+static void recursive_dir_scan(const char *path, int *max_depth,
+                               int current_depth, char *deepest_dir) {
+    DIR *dir;
+    struct dirent *entry;
     char full_path[MAX_PATH];
 
     dir = opendir(path);
-    if (!dir) return;
+    if (!dir)
+        return;
 
     while ((entry = readdir(dir)) != NULL) {
         // Skip . and .. entries
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
 
         snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
 
@@ -112,9 +119,9 @@ static void recursive_dir_scan(const char* path, int* max_depth, int current_dep
  * @param path The path of the directory to analyze.
  * @return The total size of the directory in bytes.
  */
-static off_t calculate_total_size(const char* path) {
-    DIR* dir;
-    struct dirent* entry;
+static off_t calculate_total_size(const char *path) {
+    DIR *dir;
+    struct dirent *entry;
     struct stat st;
     off_t total_size = 0;
     char full_path[MAX_PATH];
@@ -133,12 +140,14 @@ static off_t calculate_total_size(const char* path) {
 
     dir = opendir(path);
     if (!dir) {
-        fprintf(stderr, "Error opening directory %s: %s\n", path, strerror(errno));
+        fprintf(stderr, "Error opening directory %s: %s\n", path,
+                strerror(errno));
         return 0;
     }
 
     while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
 
         snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
 
@@ -148,11 +157,13 @@ static off_t calculate_total_size(const char* path) {
                 total_size += calculate_total_size(full_path);
             } else if (S_ISREG(st.st_mode)) {
                 // Add file size, rounded up to the nearest block
-                total_size += (st.st_blocks * 512 + block_size - 1) / block_size * block_size;
+                total_size += (st.st_blocks * 512 + block_size - 1) /
+                              block_size * block_size;
             }
             // Ignore symbolic links and other special files
         } else {
-            fprintf(stderr, "Error stating %s: %s\n", full_path, strerror(errno));
+            fprintf(stderr, "Error stating %s: %s\n", full_path,
+                    strerror(errno));
         }
     }
     closedir(dir);
@@ -160,23 +171,27 @@ static off_t calculate_total_size(const char* path) {
 }
 
 /**
- * @brief Recursively finds the largest file in a directory and its subdirectories.
+ * @brief Recursively finds the largest file in a directory and its
+ * subdirectories.
  *
  * @param path The path of the directory to scan.
  * @param largest_size Pointer to store the size of the largest file found.
  * @param largest_file Buffer to store the path of the largest file.
  * @param largest_file_size Size of the largest_file buffer.
  */
-static void find_largest_file(const char* path, off_t* largest_size, char* largest_file, size_t largest_file_size) {
-    DIR* dir;
-    struct dirent* entry;
+static void find_largest_file(const char *path, off_t *largest_size,
+                              char *largest_file, size_t largest_file_size) {
+    DIR *dir;
+    struct dirent *entry;
     char full_path[MAX_PATH];
 
     dir = opendir(path);
-    if (!dir) return;
+    if (!dir)
+        return;
 
     while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
 
         snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
 
@@ -184,7 +199,8 @@ static void find_largest_file(const char* path, off_t* largest_size, char* large
         if (lstat(full_path, &st) == 0) {
             if (S_ISDIR(st.st_mode)) {
                 // Recursively scan subdirectories
-                find_largest_file(full_path, largest_size, largest_file, largest_file_size);
+                find_largest_file(full_path, largest_size, largest_file,
+                                  largest_file_size);
             } else if (S_ISREG(st.st_mode)) {
                 // Check if this file is larger than the current largest
                 if (st.st_size > *largest_size) {
@@ -198,7 +214,6 @@ static void find_largest_file(const char* path, off_t* largest_size, char* large
     closedir(dir);
 }
 
-
 /**
  * @brief Prints detailed analytics about a directory.
  *
@@ -208,14 +223,15 @@ static void find_largest_file(const char* path, off_t* largest_size, char* large
  *
  * @param path The path of the directory to analyze.
  */
-void print_dir_analytics(const char* path) {
-    DIR* dir;
-    struct dirent* entry;
+void print_dir_analytics(const char *path) {
+    DIR *dir;
+    struct dirent *entry;
     struct stat st;
     off_t largest_size = 0;
     int total_files = 0, total_dirs = 0, empty_files = 0, max_depth = 0;
     time_t newest_time = 0, oldest_time = time(NULL);
-    char largest_file[MAX_PATH] = "", newest_file[MAX_PATH] = "", oldest_file[MAX_PATH] = "";
+    char largest_file[MAX_PATH] = "", newest_file[MAX_PATH] = "",
+         oldest_file[MAX_PATH] = "";
     char empty_file_names[MAX_FILES][256];
     char deepest_dir[MAX_PATH] = "";
 
@@ -234,9 +250,11 @@ void print_dir_analytics(const char* path) {
     while ((entry = readdir(dir)) != NULL) {
         char full_path[MAX_PATH];
         snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
-        if (lstat(full_path, &st) != 0) continue;
+        if (lstat(full_path, &st) != 0)
+            continue;
 
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
 
         if (S_ISDIR(st.st_mode)) {
             total_dirs++;
@@ -280,6 +298,7 @@ void print_dir_analytics(const char* path) {
         return;
     }
 
+    printf("%d\t%d\n", value, level);
     // Print analytics
     printf("%s%s%s\n", ANSI_BOLD, cwd, ANSI_RESET);
     printf("🧮 Total Size    : %s\n", format_size(total_size));
@@ -287,9 +306,12 @@ void print_dir_analytics(const char* path) {
     printf("🌳 Max Depth     : %d levels\n", max_depth);
     printf("📁 Deepest Dir   : %s\n", deepest_dir);
     printf("🗃️  Files         : %d\n", total_files);
-    printf("🐘 Largest File  : %s [%s]\n", largest_file, format_size(largest_size));
-    printf("🏺 Oldest File   : %s [%s]\n", oldest_file, format_time(oldest_time));
-    printf("🆕 Newest File   : %s [%s]\n", newest_file, format_time(newest_time));
+    printf("🐘 Largest File  : %s [%s]\n", largest_file,
+           format_size(largest_size));
+    printf("🏺 Oldest File   : %s [%s]\n", oldest_file,
+           format_time(oldest_time));
+    printf("🆕 Newest File   : %s [%s]\n", newest_file,
+           format_time(newest_time));
     printf("📭 Empty Files   : %d [", empty_files);
 
     // Print names of empty files
@@ -297,4 +319,10 @@ void print_dir_analytics(const char* path) {
         printf("%s%s", empty_file_names[i], (i + 1 < empty_files) ? " " : "");
     }
     printf("]\n");
+}
+
+void get_slon_values(bool show_slon, unsigned int slon_step) {
+
+    value = show_slon;
+    level = slon_step;
 }
