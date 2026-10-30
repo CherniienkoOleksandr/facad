@@ -1,6 +1,23 @@
-[x] --version
-[ ] --analytic
-[ ] --long
+
+1. REBUILD OUTPUT. Vary depending of window size and files quantity
+	--> ls -1
+	--> ls='ls --color=auto --group-directories-first --human-readable -ta'
+	--> ?
+
+2. add --heavy flag (window_size_change activity)
+2. slon
+	--> ./build/facad --slon 10 --help
+	--> ./build/facad --slon -l
+
+3. check and install necessary font for emojy
+
+
+
+
+build without copying to the user/sysstem folder:
+	meson compile -C build
+	./build/facad --help
+
 
 
 
