@@ -1,0 +1,38 @@
+[
+  {
+    "file": "check_window_size.c",
+    "arguments": [
+      "/usr/bin/cc",
+      "-O2",
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-MMD",
+      "-MP",
+      "-c",
+      "-o",
+      "check_window_size.o",
+      "check_window_size.c"
+    ],
+    "directory": "/home/al/Git/facad/window_size_change",
+    "output": "check_window_size.o"
+  },
+  {
+    "file": "main.c",
+    "arguments": [
+      "/usr/bin/cc",
+      "-O2",
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-MMD",
+      "-MP",
+      "-c",
+      "-o",
+      "main.o",
+      "main.c"
+    ],
+    "directory": "/home/al/Git/facad/window_size_change",
+    "output": "main.o"
+  }
+]
